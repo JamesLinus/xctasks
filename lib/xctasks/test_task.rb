@@ -240,7 +240,6 @@ module XCTasks
       def run_tests(options = {})
         ios_version = options[:ios_version]
         XCTasks::Command.run(%q{killall "iPhone Simulator"}, false) if sdk == :iphonesimulator
-        
         target = workspace ? "-workspace #{workspace}" : "-project #{project}"
 
         output_log_command = output_log ? "| tee -a #{output_log}" : nil
@@ -311,7 +310,6 @@ module XCTasks
       @prepare_dependency = namespace_name.kind_of?(Hash) ? namespace_name.values.first : nil
 
       yield self if block_given?
-
       raise ConfigurationError, "A workspace or project must be configured" unless workspace || project
       raise ConfigurationError, "At least one subtask must be configured" if subtasks.empty?
       define_rake_tasks
