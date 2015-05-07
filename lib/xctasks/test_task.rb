@@ -156,6 +156,8 @@ module XCTasks
           destination = Destination.new(specifier)
           yield destination if block_given?
           @destinations << destination
+        elsif specifier.kind_of?(Destination)
+          @destinations << specifier
         else
           raise ArgumentError, "Cannot configure a destination with a #{specifier}"
         end
@@ -238,7 +240,7 @@ module XCTasks
       def run_tests(options = {})
         ios_version = options[:ios_version]
         XCTasks::Command.run(%q{killall "iPhone Simulator"}, false) if sdk == :iphonesimulator
-
+        
         target = workspace ? "-workspace #{workspace}" : "-project #{project}"
 
         output_log_command = output_log ? "| tee -a #{output_log}" : nil
@@ -297,22 +299,24 @@ module XCTasks
 
     include ::Rake::DSL if defined?(::Rake::DSL)
 
-    attr_reader :namespace_name, :prepare_dependency, :config, :subtasks
+    attr_reader :namespace_name, :prepare_dependency, :config, :subtasks, :destination
     extend Configuration::Delegations
 
     def initialize(namespace_name = :test)
       @namespace_name = namespace_name
       @config = Configuration.new
       @subtasks = []
+      @destination
       @namespace_name = namespace_name.kind_of?(Hash) ? namespace_name.keys.first : namespace_name
       @prepare_dependency = namespace_name.kind_of?(Hash) ? namespace_name.values.first : nil
 
       yield self if block_given?
+
       raise ConfigurationError, "A workspace or project must be configured" unless workspace || project
       raise ConfigurationError, "At least one subtask must be configured" if subtasks.empty?
       define_rake_tasks
     end
-
+    
     def subtasks=(subtasks)
       if subtasks.kind_of?(Hash)
         subtasks.each { |name, scheme| subtask(name => scheme) }
@@ -324,9 +328,26 @@ module XCTasks
     def subtask(name_options)
       subtask = Subtask.new(name_options, config)
       yield subtask if block_given?
+      if @destination
+        subtask.destination @destination
+      end
       @subtasks << subtask
     end
-
+    
+    def destination(specifier = {})
+      if specifier.kind_of?(String)
+        raise ArgumentError, "Cannot configure a destination via a block when a complete String specifier is provided" if block_given?
+        @destinations << specifier.shellescape
+      elsif specifier.kind_of?(Hash)
+        destination = Destination.new(specifier)
+        yield destination if block_given?
+        @destination = destination
+        subtasks.each do |s|
+          s.destination destination
+        end
+      end
+    end
+    
     def define_rake_tasks
       namespace self.namespace_name do
         task (prepare_dependency ? { prepare: prepare_dependency} : :prepare ) do
