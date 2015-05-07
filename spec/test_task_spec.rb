@@ -350,6 +350,7 @@ describe XCTasks::TestTask do
         end
       end
     end
+    
 
     describe 'spec:unit' do
       subject { Rake.application['spec:unit'] }
@@ -377,6 +378,42 @@ describe XCTasks::TestTask do
     end
   end
 
+  describe 'Global destination configuration applies to multiple subtasks' do
+    let!(:task) do
+      XCTasks::TestTask.new(:spec) do |t|
+        t.workspace = 'LayerKit.xcworkspace'
+        t.runner    = :xctool
+        t.subtasks  = {unit: 'Unit Tests', functional: 'Functional Tests'}
+        t.destination do |d|
+          d.platform = :iossimulator
+          d.name = 'iPhone 6 Plus'
+          d.os = :latest
+        end
+      end
+    end  
+    
+    describe 'spec:unit' do
+      it "configures the destination for each subtask" do
+        task.subtasks do |t|
+          t.destination.platform.should == :iossimulator
+          t.destination.name.should == 'iPhone 6 Plus'
+          t.destination.os.should == :latest
+        end
+      end
+    end
+
+    describe 'spec:unit' do
+      subject { Rake.application['spec:unit'] }
+      it "configures the appropriate destination commands" do
+        subject.invoke
+        @commands.should == [
+          "killall \"iPhone Simulator\"",
+          "/usr/local/bin/xctool -workspace LayerKit.xcworkspace -scheme 'Unit Tests' -sdk iphonesimulator -destination platform='iOS Simulator',name='iPhone 6 Plus',OS='latest' clean build test"
+        ]
+      end
+    end
+  end
+  
   describe 'SDK Configuration' do
     let!(:task) do
       XCTasks::TestTask.new(:spec) do |t|
