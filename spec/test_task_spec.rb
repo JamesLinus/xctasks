@@ -378,7 +378,7 @@ describe XCTasks::TestTask do
     end
   end
 
-  describe 'Global destination fonfiguration applies to multiple subtasks' do
+  describe 'Global destination configuration applies to multiple subtasks' do
     let!(:task) do
       XCTasks::TestTask.new(:spec) do |t|
         t.workspace = 'LayerKit.xcworkspace'
